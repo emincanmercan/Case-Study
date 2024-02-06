@@ -1,5 +1,5 @@
 const requestLogic = require("./axiosLogic")
-const Movie = require('../dbModels/netflixMovies'); // Model yolu projenize göre değiştirilmelidir
+const Movie = require('../dbModels/netflixMovies');
 const { v4: uuidv4 } = require('uuid');
 
 let dbMovieLogic = {
@@ -16,6 +16,7 @@ let dbMovieLogic = {
         method : "get",
         url : `https://api.themoviedb.org/3/movie/${movieId}?language=tr-TR`,
         headers :  { 
+          'Authorization': `Bearer ${process.env.TOKEN}`
         }
       }
       let movieApiReqDetails = await requestLogic.sendRequest(axiosParams)
@@ -48,7 +49,8 @@ let dbMovieLogic = {
     let axiosParams = {
       method : "get",
       url : "https://api.themoviedb.org/3/discover/movie?vote_count.gte=1500&vote_average.gte=8.4&sort_by=release_date.asc",
-      headers :  { 
+      headers :  {
+        'Authorization': `Bearer ${process.env.TOKEN}`      
       }
     }
     let movieApiReq = await requestLogic.sendRequest(axiosParams)
@@ -58,12 +60,50 @@ let dbMovieLogic = {
       return await dbMovieLogic.insertDb(movieApiReq.response.data.results)
     }
   },
-  getAllMovies : async function (params) {
+  getMovie : async function (id) {
     try {
-      const movies = await Movie.find();
-      return movies
-      } catch (error) {
-        return {err : error }
+      let movie = undefined
+      if (id != undefined) {
+        movie = await Movie.findOne({ _id: id });
+      }else{
+        movie = await Movie.find();
+      }
+      if (movie == null) {
+        movie = []
+      }
+      return movie
+    } catch (error) {
+      return {err : error }
+    }
+  },
+  insertMovie : async function (insertObj) {
+    const newMovie = new Movie({
+      id: uuidv4(),
+      name: insertObj.title,
+      overview: insertObj.overview,
+      popularity: insertObj.popularity,
+      voteAverage: insertObj.voteAverage,
+      voteCount: insertObj.voteVount,
+      releaseDate: insertObj.releaseDate,
+      genre: insertObj.genres
+    });
+    try {
+      await newMovie.save();
+    } catch (error) {
+      return {err : "Db Insert Error" }
+    }
+    return "Movie Saved"
+  },
+  deleteMovie : async function (id) {
+    try {
+      let deletedRes = await Movie.deleteOne({ id: id });
+      if (deletedRes.deletedCount == 0) {
+        return "Not Found Movie"
+      }else{
+        return "Deleted Movie"
+      }
+    } catch (error) {
+      return {err : error }
     }
   }
 }
